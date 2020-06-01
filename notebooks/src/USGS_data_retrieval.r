@@ -1,4 +1,3 @@
-
 # library(devtools)
 # install_github("USGS-R/dataRetrieval")
 
@@ -6,44 +5,49 @@
 
 options(repr.matrix.max.rows=600, repr.matrix.max.cols=200)
 
-install.packages("padr")
+R.Version()$version.string
 
-library(dplyr)
-library(dataRetrieval)
-# library(leaflet)
-# library(htmlwidgets)
-# library(mapview)
-# library(rgdal)
+packageVersion("dataRetrieval")
 
-library(ggplot2)
-# library(reshape2)
+ipak <- function(pkg){
+    new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+    if (length(new.pkg)) 
+        install.packages(new.pkg, dependencies = TRUE)
+    sapply(pkg, require, character.only = TRUE)
+}
 
-# library(naniar)
-# library(httr)
-# set_config(verbose())
-# set_config(progress())
-library(padr)
-library(data.table)
+packages <- c('padr', 'dplyr', 'dataRetrieval', 'ggplot2', 'data.table', 'rgdal', 'leaflet', 'htmlwidgets')
+ipak(packages)
 
 # out_dir = "/global/project/projectdirs/m1800/pin/Reach_scale_model/data/well_data/GW_chemistry/"
-out_dir = "~/Dropbox/PNNL/Projects/Delaware_river_basin/data/"
+out_dir = "~/Dropbox/PNNL/Projects/Columbia_Basin/data/"
+
 fig_dir = "~/Dropbox/PNNL/Projects/Delaware_river_basin/figures/"
 gis_file = "~/Dropbox/PNNL/Projects/Delaware_river_basin/GIS/"
 
-DRB_bound <- readOGR(paste0(gis_file, "DRB_bound/DRB_bound.shp") )
-delaware_river <- readOGR(paste0(gis_file, "delawareriver/delawareriver.shp") )
-delaware_river_trib <- readOGR(paste0(gis_file, "drb_riv_arc/drb_riv_arc.shp") )
-neversink <- readOGR(paste0(gis_file, "Neversink/Neversink.shp") )
-frenchCreek <- readOGR(paste0(gis_file, "french_creek_watershed/french_creek_watershed.shp") )
-delawareGap <- readOGR(paste0(gis_file, "delaware_gap/delawareGap.shp") )
+CRB_shp = "~/Dropbox/PNNL/Projects/Columbia_Basin/Reach_domain_QGIS/CRB/CR_shape/CR.shp"
+CRB_HU4_shp = "~/Dropbox/PNNL/Projects/Columbia_Basin/Reach_domain_QGIS/CRB/WBDHU/CRB_WBDHU4.shp"
 
-# transform cooridnated system
-DRB_bound <- spTransform(DRB_bound, CRS("+proj=longlat +datum=WGS84 +no_defs"))
-delaware_river <- spTransform(delaware_river, CRS("+proj=longlat +datum=WGS84 +no_defs"))
-delaware_river_trib <- spTransform(delaware_river_trib, CRS("+proj=longlat +datum=WGS84 +no_defs"))
-neversink <- spTransform(neversink, CRS("+proj=longlat +datum=WGS84 +no_defs"))
-frenchCreek <- spTransform(frenchCreek, CRS("+proj=longlat +datum=WGS84 +no_defs"))
-delawareGap <- spTransform(delawareGap, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+# DRB_bound <- readOGR(paste0(gis_file, "DRB_bound/DRB_bound.shp") )
+# delaware_river <- readOGR(paste0(gis_file, "delawareriver/delawareriver.shp") )
+# delaware_river_trib <- readOGR(paste0(gis_file, "drb_riv_arc/drb_riv_arc.shp") )
+# neversink <- readOGR(paste0(gis_file, "Neversink/Neversink.shp") )
+# frenchCreek <- readOGR(paste0(gis_file, "french_creek_watershed/french_creek_watershed.shp") )
+# delawareGap <- readOGR(paste0(gis_file, "delaware_gap/delawareGap.shp") )
+
+# # transform cooridnated system
+# DRB_bound <- spTransform(DRB_bound, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+# delaware_river <- spTransform(delaware_river, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+# delaware_river_trib <- spTransform(delaware_river_trib, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+# neversink <- spTransform(neversink, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+# frenchCreek <- spTransform(frenchCreek, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+# delawareGap <- spTransform(delawareGap, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+
+CRB_bound <- readOGR(CRB_shp)
+CRB_bound <- spTransform(CRB_bound, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+
+CRB_HU4 <- readOGR(CRB_HU4_shp)
+CRB_HU4 <- spTransform(CRB_HU4, CRS("+proj=longlat +datum=WGS84 +no_defs"))
 
 fillGapNA <- function(df, t_day){
     ## inputs: df-- the data.frame; timeStamp-- datetime column variable; t_day-- target time gap
@@ -181,7 +185,7 @@ rating_base_log = rating_exsa
 rating_base_log$DEP = log(rating_base_log$DEP)
 rating_base_log$INDEP = log(rating_base_log$INDEP)
 
-lm.rating = lm(DEP~INDEP, data=rating_base_log)
+lm.rating = lm(INDEP~DEP, data=rating_base_log)
 
 lm.sum = summary(lm.rating)
 lm.sum
@@ -189,16 +193,16 @@ lm.sum
 a = exp(lm.rating$coefficients[1])
 b = lm.rating$coefficients[2]
 
-fitted_y = a*(rating_exsa$INDEP)^b
+fitted_y = a*(rating_exsa$DEP)^b
 
-ray_y = -7.252 + 0.138*(rating_exsa$INDEP)^0.438
+ray_y = -7.252 + 0.138*(rating_exsa$DEP)^0.438
 
-plot(rating_exsa$INDEP, rating_exsa$DEP)
-lines(rating_exsa$INDEP, fitted_y, col = 'red')
-lines(rating_exsa$INDEP, ray_y, col = 'blue')
-text(10, 5.5e5, paste0('y = ax^b  (', 'a = ', sprintf("%.2f",a), ', ', 'b = ', sprintf("%.2f",b), ')'))
-text(5, 5e5, sprintf("R^2 = %.2f",lm.sum$adj.r.squared))
-legend(25, 10e4, c('raw', 'rating curve', 'rating curve by Ray'), col = c('black', 'red', 'blue'), 
+plot(rating_exsa$DEP, rating_exsa$INDEP)
+lines(rating_exsa$DEP, fitted_y, col = 'red', lw = 2)
+lines(rating_exsa$DEP, ray_y, col = 'blue', lw=2)
+text( 1.5e5, 35, paste0('y = ax^b  (', 'a = ', sprintf("%.4f",a), ', ', 'b = ', sprintf("%.2f",b), ')'))
+text(1e5, 30, sprintf("R^2 = %.2f",lm.sum$adj.r.squared))
+legend(3.5e5, 10, c('raw', 'rating curve', 'rating curve by Ray'), col = c('black', 'red', 'blue'), 
        lty = c(NA, 1, 1), pch= c(1, NA, NA))
 
 # siteNumbers = c("01434025", "01434021", "0143400680", "01435000") # neversink
@@ -252,11 +256,12 @@ for (siteNumber in siteNumbers){
 }
 
 # siteNumber = c("01434025", "01434021", "0143400680", "01435000")
-siteNumber = "01435000"
+# siteNumber = "01435000"
+siteNumber = "12510500"
 
-# pCode = c("00060", "00065")
-pCode = "00060"
-startDate <- as.Date("1980-01-01")
+pCode = c("00060", "00065")
+# pCode = "000618"
+startDate <- as.Date("2000-01-01")
 # endDate = as.Date('2019-01-01')
 endDate = Sys.Date()
 
@@ -305,14 +310,14 @@ ggsave(paste0(fig_dir,titlename,"_", variableInfo$variableDescription[1],".png")
        width = 8, height = 5, units = "in")
 
 # siteNumbers = c("01434025", "01434021", "0143400680", "01435000") # neversink
-siteNumbers = "01472157"
-
+# siteNumbers = "01472157"
+siteNumber = "12510500"
 # pCode = c("00618", "00681") # NO3, DOC
-pCode = c("00010", "00300", "00618", "00681")
+# pCode = c("00010", "00300", "00618", "00681")
 
-# pCode = "00618" # nitrate
+pCode = "00618" # nitrate
 # pCode = "00681" #DOC
-startDate <- as.Date("1980-01-01")
+startDate <- as.Date("2000-01-01")
 # endDate = as.Date('2019-01-01')
 endDate = Sys.Date()
 
@@ -367,6 +372,10 @@ dim(data)
 variableInfo <- attr(data, "variableInfo")
 siteInfo <- attr(data, "siteInfo")
 
+variableInfo$parameter_nm
+
+write.csv(data, "~/Dropbox/Conferences_and_Meetings/PI meetings/PI meeting 2020/data/USGS_12510500_NO3.csv")
+
 par(mar = c(5, 5, 5, 5))  #sets the margin (mar) size of the plot window
 
 plot(data$sample_dt, data$result_va, type="b", ylab = variableInfo$parameter_nm, 
@@ -381,9 +390,9 @@ titlename = paste(siteInfo$station_nm, "-",siteInfo$site_no)
 title(titlename)
 # legend("topleft", variableInfo$unit, col = c("black", 
 #                                                     "red"), lty = c(NA, 1), pch = c(1, NA))
-dev.copy(jpeg, width=8,height=6,units='in',res=300,quality=100, 
-         file = paste0(fig_dir,titlename,"_", variableInfo$parameter_nm,".jpg"))
-dev.off()
+# dev.copy(jpeg, width=8,height=6,units='in',res=300,quality=100, 
+#          file = paste0(fig_dir,titlename,"_", variableInfo$parameter_nm,".jpg"))
+# dev.off()
 
 # siteNumber = c("01434025", "01434021", "0143400680", "01435000")
 # siteNumber = "97992339"
@@ -692,14 +701,16 @@ ggplot(Q_NO3, aes(x=daily_mean.x, y=daily_mean.y)) + geom_point(alpha = 0.3) +
 
 ggsave(paste0(fig_dir,titlename,"_Q_NO3.png"), device = "png", width = 6, height = 5, units = "in")
 
-pCode = c("00060", "00065")
-# pCode = c("00060")
+# pCode = c("00060", "00065")
+pCode = c("00618")
 # pCode <- c("00662","00665")
 
 data <- readNWISdata(stateCd="WA", parameterCd=pCode,
                      service="site", seriesCatalogOutput=TRUE)
 
 head(data)
+
+write.csv(data, "./WAsites_NO3.csv")
 
 sub_data = filter(data, dec_lat_va >= "46.2" & dec_lat_va <= "47.0") %>%
   filter(dec_long_va >= "-118.6" & dec_long_va <= "-120.0") %>%
@@ -720,32 +731,32 @@ m
 
 saveWidget(m, file=paste(out_dir, "m.html", sep = ""))
 
-
-
 pCode = c("00010","00060", "00065","00095","00300","00301","00400", "00618", "00620", "00681","63680","72019","99133") # river gage parameters.
 
 # latitude and longitude box region (lowerleft_lat, lowerleft_lon, upperright_lat, upperright_long)
 # box.region = c(-120.0,46.2,-118.6,47.0) #hanford
 # box.region = c(-76.6,38.3,-74.0,42.6) #delaware river basin
 
-HUCcode = c("02040201","02040202", "02040203", "02040204","02040205", 
-            "02040206", "02040207", "02040101","02040102", "02040103", 
-            "02040104","02040105", "02040106") # DRB
-# HUCcode = c("02040201", "02040102")
-HUC1 = c("02040201","02040202", "02040203", "02040204","02040205", 
-            "02040206", "02040207", "02040101","02040102", "02040103")
-HUC2 = c("02040104","02040105", "02040106")
+# HUCcode = c("02040201","02040202", "02040203", "02040204","02040205", 
+#             "02040206", "02040207", "02040101","02040102", "02040103", 
+#             "02040104","02040105", "02040106") # DRB
+HUCcode = c("14020001")
+# HUC1 = c("02040201","02040202", "02040203", "02040204","02040205", 
+#             "02040206", "02040207", "02040101","02040102", "02040103")
+# HUC2 = c("02040104","02040105", "02040106")
 
 ## use long_lat box to query data from sites
 # sites <- readNWISdata(bBox = box.region, parameterCd = pCode, service="site", asDateTime = TRUE,
 #                      seriesCatalogOutput=TRUE)
 
-sites1 <- readNWISdata(huc = HUC1, parameterCd = pCode, service="site", asDateTime = TRUE,
-                     seriesCatalogOutput=TRUE)
-sites2 <- readNWISdata(huc = HUC2, parameterCd = pCode, service="site", asDateTime = TRUE,
+# sites1 <- readNWISdata(huc = HUC1, parameterCd = pCode, service="site", asDateTime = TRUE,
+#                      seriesCatalogOutput=TRUE)
+# sites2 <- readNWISdata(huc = HUC2, parameterCd = pCode, service="site", asDateTime = TRUE,
+#                      seriesCatalogOutput=TRUE)
+sites <- readNWISdata(huc = HUCcode, parameterCd = pCode, service="site", asDateTime = TRUE,
                      seriesCatalogOutput=TRUE)
 
-sites = bind_rows(sites1, sites2)
+# sites = bind_rows(sites1, sites2)
 
 sub_sites = sites %>%
         filter(parm_cd %in% pCode) %>%
@@ -754,11 +765,15 @@ sub_sites = sites %>%
 
 unique_sites <- sub_sites[!duplicated(sub_sites[c('site_no', 'parm_cd')]),] 
 
-write.csv(unique_sites, paste(out_dir, "DRB_USGS_sites.csv", sep = ""))
+write.csv(unique_sites, paste(out_dir, "EastTaylor_USGS_sites.csv", sep = ""))
 
-sub_sites_updated = filter(sub_sites, parm_cd %in% pCode & end_date > as.Date('2019-01-01'))
+sub_sites_updated = filter(sub_sites, parm_cd %in% pCode & end_date > as.Date('2010-01-01'))
 
-write.csv(sub_sites_updated, paste(out_dir, "DRB_USGS_sites_updated.csv", sep = ""))
+write.csv(sub_sites_updated, paste(out_dir, "EastTaylor_USGS_sites_endDate2010.csv", sep = ""))
+
+sub_sites_updated = filter(sub_sites, parm_cd %in% pCode & end_date > as.Date('2020-01-01'))
+
+write.csv(sub_sites_updated, paste(out_dir, "EastTaylor_USGS_sites_endDate2020.csv", sep = ""))
 
 unique_sites_parm <- sub_sites_updated[!duplicated(sub_sites_updated[c('site_no', 'parm_cd')]),] 
 
@@ -812,25 +827,32 @@ sampleFraction = "Dissolved"
 unit = "mg/L"
 
 # parameterCd = "USGS-00600"
-startDate <- as.Date("1980-01-01")
+startDate <- as.Date("2000-01-01")
 # endDate = as.Date('2019-01-01')
 endDate = Sys.Date()
 # startDate = Sys.Date() - 365*10 # past 10 years
 box.region = c(-76.6,38.3,-74.0,42.6) #delaware river basin
-HUCcode = c("02040201","02040202", "02040203", "02040204","02040205", 
-            "02040206", "02040207", "02040101","02040102", "02040103", 
-            "02040104","02040105", "02040106") # DRB
+# HUCode = c("02040201","02040202", "02040203", "02040204","02040205", 
+#             "02040206", "02040207", "02040101","02040102", "02040103", 
+#             "02040104","02040105", "02040106") # DRB
+HUCode = c("1701", "1702", "1703", "1704", "1705", "1706", "1707", "1708", "1709") # CRB
 countrycode = "US"
+statecode = "WA"
 
 qwData <- readWQPdata(countrycode = countrycode, characteristicName=name, sampleMedia = media, startDate = startDate, 
                       endDate = endDate)
 
 write.csv(qwData, file = paste0(out_dir, sampleFraction, " ", name,"_data_US.csv"))
 
-qwData <- readWQPdata(huc=HUCcode, characteristicName=name, sampleMedia = media, startDate = startDate, 
+qwData <- readWQPdata(huc=HUCode, characteristicName=name, sampleMedia = media, startDate = startDate, 
                       endDate = endDate)
 
-write.csv(qwData, file = paste0(out_dir, sampleFraction, " ", name,"_data_80_19.csv"))
+write.csv(qwData, file = paste0(out_dir, sampleFraction, " ", name,"_CRB_00_20.csv"))
+
+qwData <- readWQPdata(statecode = statecode, characteristicName=name, sampleMedia = media, startDate = startDate, 
+                      endDate = endDate)
+
+write.csv(qwData, file = "./nitrate_WA.csv")
 
 varInfo = attr(qwData, "variableInfo")
 siteInfo <- attr(qwData, "siteInfo")
@@ -861,7 +883,7 @@ qwSummary <- qwData %>%
   arrange(-count) %>%
   left_join(siteInfo, by = "MonitoringLocationIdentifier")
 
-write.csv(qwSummary, file = paste0(out_dir, sampleFraction, " ",name,"_site_summary_US.csv"))
+write.csv(qwSummary, file = paste0(out_dir, "./nitrate_site_summary_CRB_00_20.csv"))
 
 table(qwSummary$MonitoringLocationTypeName)
 
@@ -906,14 +928,16 @@ rad <- 3*seq(1,4,length.out = 16)
 qwSummary$sizes <- rad[as.numeric(cut(qwSummary$count, breaks=16))]
           
 m = leaflet(data=qwSummary) %>% 
-  setView(lng = -75.1, lat = 40.8, zoom = 7) %>%
+  setView(lng = -120, lat = 46, zoom = 7) %>%
   addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data=delawareGap, weight=2, col= 'green') %>%
-  addPolygons(data=neversink, weight=2, col= 'green') %>%
-  addPolygons(data=frenchCreek, weight=2, col= 'green') %>%
-  addPolygons(data=delaware_river, weight=2, col= 'blue') %>%
-  addPolylines(data=delaware_river_trib, weight=1, col= 'gray') %>%
-  addPolylines(data=DRB_bound, weight=2, col= 'black') %>%
+#   addPolygons(data=delawareGap, weight=2, col= 'green') %>%
+#   addPolygons(data=neversink, weight=2, col= 'green') %>%
+#   addPolygons(data=frenchCreek, weight=2, col= 'green') %>%
+#   addPolygons(data=delaware_river, weight=2, col= 'blue') %>%
+#   addPolylines(data=delaware_river_trib, weight=1, col= 'gray') %>%
+#   addPolylines(data=DRB_bound, weight=2, col= 'black') %>%
+  addPolylines(data=CRB_HU4, weight=1, col= 'gray') %>%
+  addPolylines(data=CRB_bound, weight=2, col= 'black') %>%
   addCircleMarkers(~dec_lon_va,~dec_lat_va,
                    fillColor = ~pal(max),radius = ~sizes,fillOpacity = ~ifelse(type == "gw", 0, 0.8), 
                    stroke=T, opacity = 1,color = ~pal(max), weight = 1,
@@ -931,13 +955,13 @@ m = leaflet(data=qwSummary) %>%
             values=~max,
             opacity = 0.8,
             labFormat = labelFormat(digits = 1), 
-            title = paste0('Max Value (1980~present) <br>', '(', sampleFraction, ' ', name, '-', unit, ')' )) %>%
+            title = paste0('Max Value (2000~present) <br>', '(', sampleFraction, ' ', name, '-', unit, ')' )) %>%
   addLegendCustom(colors, labels, sizes, shapes, borders)
 
 m
 
-saveWidget(m, file=paste(fig_dir, sampleFraction, " ", name,"_US_map.html", sep = ""))
-mapshot(m, file = paste(fig_dir, sampleFraction, " ", name,"_US_map.png", sep = ""))
+saveWidget(m, file=paste(out_dir, sampleFraction, " ", name,"_CRB_map.html", sep = ""))
+mapshot(m, file = paste(out_dir, sampleFraction, " ", name,"_CRB_map.png", sep = ""))
 
 media = "Water"
 group = "Stable Isotopes"
@@ -1212,16 +1236,20 @@ sampleFraction = "Dissolved"
 unit = "mg/L"
 
 # siteID = c("USGS-01434025", "USGS-01434021", "USGS-0143400680")
-siteID = c("USGS-01434025")
+# siteID = c("USGS-12510500")
+siteID = c("USGS-12505450")
+
 # parameterCd = "00600"
 # paraCd = c("00060", "00065")
 # paraCd = "00681" #DOC
 paraCd = "00618"
-startDate <- as.Date("1980-01-01")
+startDate <- as.Date("2000-01-01")
 # endDate = as.Date('2019-01-01')
 endDate = Sys.Date()
 
 qwData = readWQPqw(siteNumbers = siteID, parameterCd = paraCd, startDate = startDate, endDate = endDate)
+
+write.csv(qwData, file = "./USGS-12505450_NO3.csv")
 
 colnames(qwData)
 
